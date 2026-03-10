@@ -1,16 +1,3 @@
-import pandas as pd
-import numpy as np
-from loguru import logger
-
-class BacktestEngine:
-    def __init__(self, config):
-        self.config = config
-        self.risk_per_trade = config['risk']['risk_per_trade']
-        self.sl_mult = config['risk']['atr_sl_multiplier']
-        self.tp_mult = config['risk']['atr_tp_multiplier']
-        self.buy_thresh = config['signals']['buy_threshold']
-        self.sell_thresh = config['signals']['sell_threshold']
-        
     def run(self, df, predictions):
         df = df.copy()
         df['pred_return'] = predictions
@@ -27,6 +14,10 @@ class BacktestEngine:
         tp = 0
         atr = 0
         
+        # Blueprint Spec: 0.5 pip spread, 0.5 pip slippage
+        spread = 0.00005 
+        slippage = 0.00005
+        
         equity = 100000
         equity_curve = []
         
@@ -38,7 +29,8 @@ class BacktestEngine:
             if position == 0 and row['signal'] != 0:
                 trade_id += 1
                 position = row['signal']
-                entry_price = current_price
+                # Apply slippage on entry
+                entry_price = current_price + (position * slippage)
                 atr = current_atr
                 sl = entry_price - (position * self.sl_mult * atr)
                 tp = entry_price + (position * self.tp_mult * atr)
@@ -46,13 +38,17 @@ class BacktestEngine:
                 
             elif position != 0:
                 df.at[df.index[i], 'trade_id'] = trade_id
-                if (position == 1 and current_price <= sl) or (position == -1 and current_price >= sl):
-                    pnl = (current_price - entry_price) * position
+                # Check SL/TP
+                # Apply spread to exit price calculation for realism
+                exit_price = current_price - (position * spread) 
+                
+                if (position == 1 and exit_price <= sl) or (position == -1 and exit_price >= sl):
+                    pnl = (exit_price - entry_price) * position
                     df.at[df.index[i], 'pnl'] = pnl
-                    equity += pnl * 100000 # Approximate pip value scaling
+                    equity += pnl * 100000
                     position = 0
-                elif (position == 1 and current_price >= tp) or (position == -1 and current_price <= tp):
-                    pnl = (current_price - entry_price) * position
+                elif (position == 1 and exit_price >= tp) or (position == -1 and exit_price <= tp):
+                    pnl = (exit_price - entry_price) * position
                     df.at[df.index[i], 'pnl'] = pnl
                     equity += pnl * 100000
                     position = 0
