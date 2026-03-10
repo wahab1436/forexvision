@@ -1,0 +1,38 @@
+data:
+  primary: yfinance
+  secondary: alpha_vantage
+  alpha_vantage_key: YOUR_KEY_HERE
+  cache_dir: data/raw/
+  processed_dir: data/processed/
+
+pairs:
+  - EURUSD=X
+  - GBPUSD=X
+  - USDJPY=X
+  - AUDUSD=X
+  - USDCAD=X
+
+model:
+  target: future_return
+  horizon: 3
+  validation_folds: 5
+
+signals:
+  buy_threshold: 0.0002
+  sell_threshold: -0.0002
+
+risk:
+  risk_per_trade: 0.01
+  atr_sl_multiplier: 1.5
+  atr_tp_multiplier: 3.0
+  max_open_positions: 3
+  daily_loss_limit: -0.02
+
+alerts:
+  email_enabled: true
+  desktop_enabled: true
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  sender: your_email@gmail.com
+  recipient: your_email@gmail.com
+  password: your_app_password
