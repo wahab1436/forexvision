@@ -2,7 +2,6 @@ import lightgbm as lgb
 import pandas as pd
 import numpy as np
 import logging
-from typing import Optional, Dict, Any, Union
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 class LightGBMModel:
     """LightGBM regression model for financial forecasting."""
     
-    def __init__(self, params: Optional[Dict[str, Any]] = None):
+    def __init__(self, params=None):
         """Initialize LightGBM model."""
         default_params = {
             'n_estimators': 500,
@@ -55,6 +54,8 @@ class LightGBMModel:
         logger.info(f"Training LightGBM with {len(X_train)} samples")
         
         self.model = lgb.LGBMRegressor(**self.params)
+        
+        # Train with early stopping callback
         self.model.fit(
             X_train, y_train,
             eval_set=[(X_val, y_val)],
