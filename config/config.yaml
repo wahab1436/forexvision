@@ -1,7 +1,7 @@
 data:
   primary: yfinance
   secondary: alpha_vantage
-  alpha_vantage_key: YOUR_KEY_HERE
+  alpha_vantage_key: H7DKLFSLWF4YFM5E
   cache_dir: data/raw/
   processed_dir: data/processed/
 
