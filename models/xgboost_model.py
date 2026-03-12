@@ -2,7 +2,6 @@ import xgboost as xgb
 import pandas as pd
 import numpy as np
 import logging
-from typing import Optional, Dict, Any, Union
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +9,8 @@ logger = logging.getLogger(__name__)
 class XGBoostModel:
     """XGBoost regression model for financial forecasting."""
     
-    def __init__(self, params: Optional[Dict[str, Any]] = None):
-        """Initialize XGBoost model with configurable parameters."""
+    def __init__(self, params=None):
+        """Initialize XGBoost model."""
         default_params = {
             'n_estimators': 500,
             'max_depth': 6,
@@ -56,14 +55,33 @@ class XGBoostModel:
         
         logger.info(f"Training XGBoost with {len(X_train)} samples")
         
-        # Initialize and train model
+        # Initialize model
         self.model = xgb.XGBRegressor(**self.params)
-        self.model.fit(
-            X_train, y_train,
-            eval_set=[(X_val, y_val)],
-            eval_metric='rmse',
-            early_stopping_rounds=50,
-            verbose=False
+        
+        # Create DMatrix for callback-based early stopping (modern XGBoost)
+        dtrain = xgb.DMatrix(X_train, label=y_train)
+        dval = xgb.DMatrix(X_val, label=y_val)
+        
+        # Convert sklearn params to native XGBoost params
+        native_params = {k: v for k, v in self.params.items() 
+                        if k not in ['n_estimators', 'n_jobs', 'random_state', 'verbosity']}
+        native_params['objective'] = 'reg:squarederror'
+        
+        # Train with callback-based early stopping
+        self.model = xgb.train(
+            params=native_params,
+            dtrain=dtrain,
+            num_boost_round=self.params['n_estimators'],
+            evals=[(dval, 'validation')],
+            callbacks=[
+                xgb.callback.EarlyStopping(
+                    rounds=50,
+                    metric_name='rmse',
+                    data_name='validation',
+                    save_best=True,
+                    verbose=False
+                )
+            ]
         )
         
         logger.info(f"Training complete. Best iteration: {self.model.best_iteration}")
@@ -77,7 +95,10 @@ class XGBoostModel:
             X = X.values
         
         X = np.nan_to_num(X, nan=0.0)
-        return self.model.predict(X)
+        
+        # Convert to DMatrix for prediction
+        dtest = xgb.DMatrix(X)
+        return self.model.predict(dtest)
     
     def save(self, filepath):
         """Save model to disk."""
@@ -88,6 +109,6 @@ class XGBoostModel:
     
     def load(self, filepath):
         """Load model from disk."""
-        self.model = xgb.XGBRegressor()
+        self.model = xgb.Booster()
         self.model.load_model(filepath)
         logger.info(f"Model loaded from {filepath}")
