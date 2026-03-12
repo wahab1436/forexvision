@@ -1,40 +1,42 @@
-    def run(self, df, predictions):
-        df = df.copy()
-        df['pred_return'] = predictions
-        df['signal'] = 0
-        df.loc[df['pred_return'] > self.buy_thresh, 'signal'] = 1
-        df.loc[df['pred_return'] < self.sell_thresh, 'signal'] = -1
-        
-        df['pnl'] = 0.0
-        df['trade_id'] = 0
-        trade_id = 0
-        position = 0
-        entry_price = 0
-        sl = 0
-        tp = 0
-        atr = 0
-        
-        # Blueprint Spec: 0.5 pip spread, 0.5 pip slippage
-        spread = 0.00005 
-        slippage = 0.00005
-        
-        equity = 100000
-        equity_curve = []
-        
-        for i in range(len(df)):
-            row = df.iloc[i]
-            current_price = row['Close']
-            current_atr = row['atr_14'] if 'atr_14' in row else 0.001
-            
-            if position == 0 and row['signal'] != 0:
-                trade_id += 1
-                position = row['signal']
-                # Apply slippage on entry
-                entry_price = current_price + (position * slippage)
-                atr = current_atr
-                sl = entry_price - (position * self.sl_mult * atr)
-                tp = entry_price + (position * self.tp_mult * atr)
-                df.at[df.index[i], 'trade_id'] = trade_id
+import pandas as pd
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class BacktestEngine:
+    """Backtesting engine for strategy evaluation."""
+    
+    def __init__(self, initial_capital=100000):
+        self.initial_capital = initial_capital
+        self.capital = initial_capital
+        self.positions = []
+        self.trades = []
+    
+    def run(self, data, strategy):
+        """Execute backtest on given data."""
+        for index, row in data.iterrows():
+            signal = strategy.generate_signal(row)
+            if signal != 0:
+                self._execute_trade(signal, row)
+        return self._calculate_results()
+    
+    def _execute_trade(self, signal, row):
+        """Execute a single trade."""
+        trade = {
+            'date': row.name,
+            'signal': signal,
+            'price': row['Close']
+        }
+        self.trades.append(trade)
+    
+    def _calculate_results(self):
+        """Calculate performance metrics."""
+        return {
+            'total_trades': len(self.trades),
+            'initial_capital': self.initial_capital
+        }                df.at[df.index[i], 'trade_id'] = trade_id
                 
             elif position != 0:
                 df.at[df.index[i], 'trade_id'] = trade_id
